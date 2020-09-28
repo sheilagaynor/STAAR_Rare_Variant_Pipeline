@@ -11,14 +11,14 @@ The workflow contains a few key steps. The workflow fits a null model for testin
 ## Required inputs:
 ### Null model inputs:
 - **pheno_file**: [file] File name of phenotype file
-- **null_file **: [string] String for naming the null model file
+- **null_file**: [string] String for naming the null model file
 - **sample_id**: [string] Column name of observation/id variable  
 - **outcome**: [string] Column name of outcome variable  
 - **outcome_type**: [string] Continuous or Dichotomous  
 
 ### Association test inputs:
 - **geno_files**: [file] File name of GDS containing genotypes 
-- **results_file **: [string] String for naming the results file
+- **results_file**: [string] String for naming the results file
 
 ## Resulting output:
 The workflow produces a copy of the null model (.Rds) and results of the aggregation test in a compressed file (.gz).
