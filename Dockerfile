@@ -1,6 +1,10 @@
 # Set base image
 FROM uwgac/r-3.6.3-mkl:latest
 
+# Prepare image
+RUN sudo apt-get update && sudo apt-get -y install git
+RUN echo "r <- getOption('repos'); r['CRAN'] <- 'http://cran.us.r-project.org'; options(repos = r);" > ~/.Rprofile
+
 # Install dependencies
 RUN Rscript -e 'install.packages(c("BiocManager","Rcpp","Matrix","RcppArmadillo","readr","data.table","dplyr","doMC"))'
 RUN Rscript -e 'BiocManager::install(c("SeqArray","gdsfmt","SeqVarTools","foreach","GMMAT","CompQuadForm","GENESIS","TxDb.Hsapiens.UCSC.hg38.knownGene"))'
