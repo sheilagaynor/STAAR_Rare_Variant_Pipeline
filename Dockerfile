@@ -1,5 +1,5 @@
 # Set base image
-FROM uwgac/topmed-master:latest
+FROM uwgac/r-3.6.3-mkl:latest
 
 # Install dependencies
 RUN Rscript -e 'install.packages(c("BiocManager","Rcpp","Matrix","RcppArmadillo","readr","data.table","dplyr","doMC"))'
