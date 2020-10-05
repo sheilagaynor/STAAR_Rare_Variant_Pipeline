@@ -18,11 +18,13 @@ agds_file <- args[5]
 agds_annot_channels <- args[6]
 agg_file <- args[7]
 cand_file <- args[8]
+cond_file <- args[9]
+cond_geno_files <- args[10]
 # Analysis inputs
-maf_thres <- as.numeric(args[9])
-mac_thres <- as.numeric(args[10])
-window_length <- as.numeric(args[11])
-step_length <- as.numeric(args[12])
+maf_thres <- as.numeric(args[11])
+mac_thres <- as.numeric(args[12])
+window_length <- as.numeric(args[13])
+step_length <- as.numeric(args[14])
 
 #####################
 # Functions for input processing
@@ -89,6 +91,26 @@ get_annot <- function(annot_file_from_args){
   names(annot) = tolower(names(annot))
   annot
 }
+get_cond <- function(cond_file_from_args){
+  cat('Loading Conditional File:',cond_file_from_args,'\n')
+  if (grepl('Rda',cond_file_from_args,ignore.case=TRUE)){
+    cond <- get(load(cond_file_from_args))
+  } else if (grepl('Rds',cond_file_from_args,ignore.case=TRUE)){
+    cond <- readRDS(cond_file_from_args) 
+  } else {
+    cond <- fread(cond_file_from_args,stringsAsFactors=F, sep=',', header=T,data.table=F)
+  }
+  cat('Loaded conditional variant lists: no. variants:',nrow(cond),'\n')
+  if (sum(names(cond) %in% c('CHR','CHROM','Chr','chrom'))>0){
+    names(cond)[names(cond) %in%  c('CHR','CHROM','Chr','chrom')] = 'chr'	
+    cond$chr = sub('chr','',cond$chr)
+  }
+  names(cond) = tolower(names(cond))
+  if ( !(sum(names(cond) %in% c('chr','pos','ref','alt'))==4) ){
+    stop("Conditional variant file does not provide necessary input \n")
+  }
+  cond
+}
 
 # Load packages
 suppressMessages(library(gdsfmt))
@@ -141,6 +163,29 @@ if(agg_file!='None'){
   aggVarList <- aggregateGRangesList(agg_units)
 }
 seqClose(geno_all)
+
+#####################
+# Define, prepare conditional set
+if (cond_file != 'None'){
+  cond_in <- get_cond(cond_file)
+  cond_geno_vec <- unlist(strsplit(cond_geno_files,','))
+  cond_matrix <- c()
+  for (cond_geno_file in cond_geno_vec){
+    cond_geno <- seqOpen(cond_geno_file)
+    cond_geno_variant_info_all <- variantInfo(cond_geno, alleles = TRUE, expanded=FALSE)
+    cond_geno_variant_info <- cond_geno_variant_info_all[cond_geno_variant_info_all$pos %in% cond_in$pos,]
+    avail_cond_geno <- merge(cond_geno_variant_info, cond_in, by=c('chr','pos','ref','alt'))
+    cond_var_list <- cond_geno_variant_info_all$variant.id[cond_geno_variant_info_all$variant.id %in% avail_cond_geno$variant.id]
+    rm(cond_geno_variant_info_all); rm(cond_geno_variant_info); rm(avail_cond_geno)
+    seqSetFilter(cond_geno,sample.id=pheno_id,variant.id=cond_var_list)
+    cond_id.genotype.match <- match(pheno_id, seqGetData(cond_geno,"sample.id"))
+    cond_genotypes <- seqGetData(cond_geno, "$dosage")
+    cond_matrix <- cbind(cond_matrix, cond_genotypes[cond_id.genotype.match,])
+    rm(cond_var_list); rm(cond_id.genotype.match); rm(cond_genotypes)
+    seqClose(cond_geno)
+  }
+  cat('Prepared conditional variant lists: no. conditioning variants:',ncol(cond_matrix),'\n')
+}
 
 
 #####################
@@ -199,7 +244,11 @@ seqClose(geno_all)
           genotypes <- seqGetData(geno, "$dosage")
           genotypes <- genotypes[id.genotype.match,]
           pvalues <- 0
-          try(pvalues <- STAAR(genotypes,null_model))
+          if(cond_file=='None'){
+            try(pvalues <- STAAR(genotypes,null_model))
+          } else {
+            try(pvalues <- STAAR_cond(genotypes,cond_matrix,null_model))
+          }
           if(class(pvalues)=="list" & agg_file!='None'){
             results_temp <- c(chr, names(agg_var[var_set]), unlist(pvalues[-2]))
             results <- rbind(results,results_temp)
@@ -225,7 +274,11 @@ seqClose(geno_all)
         }
         annot_df <- data.frame(annot_tab)
         pvalues <- 0
-        try(pvalues <- STAAR(genotypes,null_model,annot_df))
+        if(cond_file=='None'){
+          try(pvalues <- STAAR(genotypes,null_model,annot_df))
+        } else {
+          try(pvalues <- STAAR_cond(genotypes,cond_matrix,null_model,annot_df))
+        }
         if(class(pvalues)=="list" & agg_file!='None'){
           results_temp <- c(chr, names(agg_var[var_set]), unlist(pvalues[-2]))
           results <- rbind(results,results_temp)
@@ -256,7 +309,11 @@ seqClose(geno_all)
             genotypes <- seqGetData(geno, "$dosage")
             genotypes <- genotypes[id.genotype.match,id.variant.match]
             pvalues <- 0
-            try(pvalues <- STAAR(genotypes,null_model,annot_in))
+            if(cond_file=='None'){
+              try(pvalues <- STAAR(genotypes,null_model,annot_in))
+            } else {
+              try(pvalues <- STAAR_cond(genotypes,cond_matrix,null_model,annot_in))
+            }
             if(class(pvalues)=="list" & agg_file!='None'){
               results_temp <- c(chr, names(agg_var[var_set]), unlist(pvalues[-2]))
               results <- rbind(results,results_temp)

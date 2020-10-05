@@ -18,6 +18,8 @@ workflow STAAR_genomewide {
     Array[File]? annot_files
     File? agg_file = "None"
     File candidate_file
+    Array[File]? cond_geno_files
+    File? cond_file
     String results_file
     String? agds_file = "None"
     String? agds_annot_channels = "None"
@@ -61,6 +63,8 @@ workflow STAAR_genomewide {
                     annot_file = annot_in,
                     agg_file = agg_file,
                     candidate_file = candidate_file,
+                    cond_geno_files = cond_geno_files,
+                    cond_file = cond_file,
                     maf_thres = maf_thres,
                     mac_thres = mac_thres,
                     window_length = window_length,
@@ -81,6 +85,8 @@ workflow STAAR_genomewide {
                     agds_annot_channels = agds_annot_channels,
                     agg_file = agg_file,
                     candidate_file = candidate_file,
+                    cond_geno_files = cond_geno_files,
+                    cond_file = cond_file,
                     maf_thres = maf_thres,
                     mac_thres = mac_thres,
                     window_length = window_length,
@@ -136,6 +142,8 @@ task run_candidate {
     String? agds_annot_channels
     File agg_file
     File candidate_file
+    Array[File]? cond_geno_files
+    File? cond_file
     String maf_thres
     String mac_thres
     Int window_length
@@ -144,7 +152,7 @@ task run_candidate {
     Int test_disk
 
     command {
-        Rscript /STAAR_genetic_region.R ${null_file} ${geno_file} ${default="None" annot_file} ${results_file} ${default="None" agds_file} ${default="None" agds_annot_channels} ${agg_file} ${candidate_file} ${maf_thres} ${mac_thres} ${window_length} ${step_length}
+        Rscript /STAAR_genetic_region.R ${null_file} ${geno_file} ${default="None" annot_file} ${results_file} ${default="None" agds_file} ${default="None" agds_annot_channels} ${agg_file} ${candidate_file} ${default="None" cond_file} ${default="None" sep="," cond_geno_files} ${maf_thres} ${mac_thres} ${window_length} ${step_length}
     }
     runtime {
         docker: "quay.io/sheilagaynor/staar_slim"
