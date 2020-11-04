@@ -241,7 +241,7 @@ test_chunk <- function( indx ) {
     var_info_iter <- Filter(function(x) nrow(x) > 0, var_info_iter)
     results <- c()
     for ( var_set in 1:length(var_info_iter)) {
-      if (annot_file=='None'){
+      if (annot_file=='None' & agds_annot_channels=='None'){
           ###############################
           #Proceed without annotations
           #Subset to the genotypes of interest

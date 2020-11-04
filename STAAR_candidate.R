@@ -223,7 +223,7 @@ if (cond_file != 'None'){
     if(agg_file!='None'){
       iterator <- SeqVarListIterator(geno, agg_var, verbose = T)
     } else {
-      iterator <- SeqVarRangeIterator(seqData, variantRanges=seg, verbose = T)
+      iterator <- SeqVarRangeIterator(geno, variantRanges=seg, verbose = T)
     }
     var_info_iter <- list(variantInfo(iterator))
     iter <- 2
