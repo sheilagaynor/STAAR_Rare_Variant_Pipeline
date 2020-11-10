@@ -349,7 +349,7 @@ test_chunk <- function( indx ) {
 run_analysis <- function( n_cores ){
   cat('Running Analysis with ', n_cores,' cores of ',num_cores,'\n')
   print(paste('Running in', n_chunk,' analysis units'))
-  if (n_cores<1){
+  if (n_cores>1){
     doMC::registerDoMC(cores = n_cores)
     mc_options <- list(preschedule=FALSE, set.seed=FALSE)
     out <- foreach(i=1:n_chunk, .combine=rbind, .inorder=FALSE, .options.multicore = mc_options) %dopar% test_chunk(i)
