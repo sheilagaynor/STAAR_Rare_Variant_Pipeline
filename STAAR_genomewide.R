@@ -215,8 +215,10 @@ test_chunk <- function( indx ) {
     seqClose(geno)
   } else {
   freq_vec <- seqAlleleFreq(geno)
-  rare_inc <- ((freq_vec <= maf_thres) | (1 - freq_vec <= maf_thres)) & (freq_vec != 0) & (freq_vec != 1)
-  seqSetFilter(geno, variant.id=geno_variant_id[rare_inc], verbose = TRUE)
+  rare_freq_inc <- ((freq_vec <= maf_thres) | (1 - freq_vec <= maf_thres)) & (freq_vec != 0) & (freq_vec != 1)
+  ct_vec <- seqAlleleCount(geno)
+  rare_ct_inc <- (ct_vec > mac_thres)
+  seqSetFilter(geno, variant.id=geno_variant_id[rare_freq_inc & rare_ct_inc], verbose = TRUE)
   rm(freq_vec); rm(rare_inc)
   #Subset annotations for efficiency
   if(annot_file!='None'){
