@@ -144,21 +144,22 @@ variant_info <- variantInfo(geno_all, alleles = FALSE, expanded=FALSE)
 chr <- variant_info$chr[1]
 if(length(unique(chr)) > 1) stop("Multiple chromosomes detected; terminating \n")
 chr = chr[1] 
-#Get the genome chunks for multi core
-grange_df <- data.frame(chr=chr, start=min(variant_info$pos), end=max(variant_info$pos))
-grange <- makeGRangesFromDataFrame(grange_df)
-n_iter_chunk <- (n_cores*num_chunk_divisions)				
-grange$seg.length <- ceiling(max(variant_info$pos)/(n_iter_chunk))
-#Get range data
-range_data <- do.call(c, lapply(seq_along(grange), function(i) {
-  x <- grange[i]
-  window.start <- seq(BiocGenerics::start(x), BiocGenerics::end(x), x$seg.length)
-  GRanges(seqnames = seqnames(x), IRanges(window.start, width = x$seg.length))}))
-n_chunk  <- length(range_data)
 #Get the aggregation units
 if(agg_file!='None'){
   chunk <- function(x,n) split(x, cut(seq_along(x), n, labels = FALSE))
   aggVarList <- aggregateGRangesList(agg_units)
+  n_chunk <- length(chunk(names(aggVarList),num_chunk_divisions))
+} else {
+  #Get the genome chunks for windows
+  grange_df <- data.frame(chr=chr, start=min(variant_info$pos), end=max(variant_info$pos))
+  grange <- makeGRangesFromDataFrame(grange_df)
+  grange$seg.length <- num_chunk_divisions
+  #Get range data
+  range_data <- do.call(c, lapply(seq_along(grange), function(i) {
+    x <- grange[i]
+    window.start <- seq(BiocGenerics::start(x), BiocGenerics::end(x), x$seg.length)
+    GRanges(seqnames = seqnames(x), IRanges(window.start, width = x$seg.length))}))
+  n_chunk  <- length(range_data)
 }
 seqClose(geno_all)
 
@@ -183,7 +184,6 @@ if (cond_file != 'None'){
     seqClose(cond_geno)
   }
   cat('Prepared conditional variant lists: no. conditioning variants:',ncol(cond_matrix),'\n')
-  
 }
 
 
@@ -201,17 +201,17 @@ test_chunk <- function( indx ) {
   #Subset genotype data to chunk
   if(agg_file!='None'){
     if( length(names(aggVarList)) < indx) return(data.frame())
-    agg_var <- aggVarList[names(aggVarList) %in% chunk(names(aggVarList),n_iter_chunk)[[indx]]]
+    agg_var <- aggVarList[names(aggVarList) %in% chunk(names(aggVarList),num_chunk_divisions)[[indx]]]
     seqSetFilter(geno, variant.sel = agg_var, verbose = TRUE)
   } else {
     # Add a window width to make sure we get all possible windows
     range_data <- resize(range_data, width(range_data) + window_length, fix = "start")
     seg <- range_data[indx]
-    seqSetFilter(geno, variant.sel = seg, verbose = TRUE)
+    seqSetFilter(geno, variant.sel = seg, verbose = TRUE) #check here to make sure getting right region
   }
   #Subset to rare variants for efficiency
-  geno_variant_id <- variant_info$variant.id
-  if (length(seqGetData(geno,'variant.id'))==0){
+  geno_variant_id <- seqGetData(geno,'variant.id')
+  if (length(geno_variant_id)<2){
     seqClose(geno)
   } else {
   freq_vec <- seqAlleleFreq(geno)
@@ -227,11 +227,21 @@ test_chunk <- function( indx ) {
   }
   
   #Get iterator for looping tests
-  if(length(seqGetData(geno, "variant.id"))>0){
+  if(length(seqGetData(geno, "variant.id"))>1){
     if(agg_file!='None'){
       iterator <- SeqVarListIterator(geno, agg_var, verbose = T)
     } else {
-      iterator <- SeqVarWindowIterator(geno, windowSize=window_length, windowShift=step_length, verbose = T)
+      #Get the genome chunks within this iteration for windows
+      grange_df <- data.frame(chr=chr, start=start(seg@ranges), end=end(seg@ranges))
+      grange <- makeGRangesFromDataFrame(grange_df)
+      grange$seg.length <- step_length
+      #Get range data
+      range_data <- do.call(c, lapply(seq_along(grange), function(i) {
+        x <- grange[i]
+        window.start <- seq(BiocGenerics::start(x), BiocGenerics::end(x), x$seg.length)
+        GRanges(seqnames = seqnames(x), IRanges(window.start, width = window_length))}))
+      iterator <- SeqVarRangeIterator(geno, variantRanges=range_data)
+      #iterator2 <- SeqVarWindowIterator(geno, windowSize=window_length, windowShift=step_length, verbose = T)
     }
     var_info_iter <- list(variantInfo(iterator))
     iter <- 2
