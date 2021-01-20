@@ -8,7 +8,7 @@ workflow STAAR_genomewide {
     String? outcome
     String? outcome_type = "continuous"
     String? covariates = "NA"
-    File? kinship_file
+    File? kinship_file = "NA"
     String? group_id = "NA"
     Int? null_memory = 25
     Int? null_disk = 50
@@ -17,11 +17,14 @@ workflow STAAR_genomewide {
     Array[File] geno_files
     Array[File]? annot_files
     File? agg_file
+    Array[File]? cond_geno_files
+    File? cond_file
+    File? cand_file
     String results_file
     String? agds_file = "None"
     String? agds_annot_channels = "None"
-    String? maf_thres = "0.05"
-    String? mac_thres = "1"
+    Int? maf_thres = 0.05
+    Int? mac_thres = 1
     Int? window_length = 2000
     Int? step_length = 1000
     # Compute inputs
@@ -40,7 +43,9 @@ workflow STAAR_genomewide {
                 outcome_type = outcome_type,
                 covariates = covariates,
                 kinship_file = kinship_file,
-                group_id = group_id
+                group_id = group_id,
+                null_memory = null_memory,
+                null_disk = null_disk
         }
     }
 
@@ -60,12 +65,17 @@ workflow STAAR_genomewide {
                     annot_file = annot_in,
                     results_file = results_file,
                     agg_file = agg_file,
+                    cond_geno_files = cond_geno_files,
+                    cond_file = cond_file,
+                    cand_file = cand_file,
                     maf_thres = maf_thres,
                     mac_thres = mac_thres,
                     window_length = window_length,
                     step_length = step_length,
                     num_cores = num_cores,
-                    num_chunk_div = num_chunk_div
+                    num_chunk_div = num_chunk_div,
+                    test_memory = test_memory,
+                    test_disk = test_disk
             }
         }
     }
@@ -80,12 +90,17 @@ workflow STAAR_genomewide {
                     agds_file = agds_file,
                     agds_annot_channels = agds_annot_channels,
                     agg_file = agg_file,
+                    cond_geno_files = cond_geno_files,
+                    cond_file = cond_file,
+                    cand_file = cand_file,
                     maf_thres = maf_thres,
                     mac_thres = mac_thres,
                     window_length = window_length,
                     step_length = step_length,
                     num_cores = num_cores,
-                    num_chunk_div = num_chunk_div
+                    num_chunk_div = num_chunk_div,
+                    test_memory = test_memory,
+                    test_disk = test_disk
             }
         }
     }
@@ -108,9 +123,17 @@ task run_null_model {
     String covariates
     File kinship_file
     String group_id
+    Int null_memory
+    Int null_disk
 
     command {
-        Rscript ~/Desktop/STAAR_Rare_Variant_Pipeline/STAAR_null_model.R ${pheno_file} ${null_file_name} ${sample_id} ${outcome} ${outcome_type} ${covariates} ${kinship_file} ${group_id}
+        Rscript /STAAR_null_model.R ${pheno_file} ${null_file_name} ${sample_id} ${outcome} ${outcome_type} ${covariates} ${kinship_file} ${group_id}
+    }
+
+    runtime {
+        docker: "quay.io/sheilagaynor/staar_slim"
+        memory: "${null_memory} GB"
+        disks: "local-disk ${null_disk} HDD"
     }
 
     output {
@@ -126,17 +149,26 @@ task run_genomewide {
     String? agds_file
     String? agds_annot_channels
     File? agg_file
+    Array[File]? cond_geno_files
+    File? cond_file
+    File? cand_file
     String maf_thres
     String mac_thres
     Int window_length
     Int step_length
     Int num_cores
     Int num_chunk_div
+    Int test_memory
+    Int test_disk
 
     command {
-        Rscript ~/Desktop/STAAR_Rare_Variant_Pipeline/STAAR_genomewide.R ${null_file} ${geno_file} ${default="None" annot_file} ${results_file} ${default="None" agds_file} ${default="None" agds_annot_channels} ${default="None" agg_file} ${maf_thres} ${mac_thres} ${window_length} ${step_length} ${num_cores} ${num_chunk_div}
+        Rscript /STAAR_genomewide.R ${null_file} ${geno_file} ${default="None" annot_file} ${results_file} ${default="None" agds_file} ${default="None" agds_annot_channels} ${default="None" agg_file} ${default="None" cond_file} ${default="None" sep="," cond_geno_files} ${default="None" cand_file} ${maf_thres} ${mac_thres} ${window_length} ${step_length} ${num_cores} ${num_chunk_div}
     }
-
+    runtime {
+        docker: "quay.io/sheilagaynor/staar_slim"
+        memory: "${test_memory} GB"
+        disks: "local-disk ${test_disk} HDD"
+    }
     output {
         File results = select_first(glob("*.gz"))
     }

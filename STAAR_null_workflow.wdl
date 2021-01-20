@@ -5,7 +5,7 @@ workflow STAAR_null {
     String outcome
     String? outcome_type = "continuous"
     String? covariates = "NA"
-    File? kinship_file
+    File? kinship_file = "NA"
     String? group_id = "NA"
     Int? null_memory = 25
     Int? null_disk = 50

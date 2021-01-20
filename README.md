@@ -1,24 +1,43 @@
 # STAAR_Rare_Variant_Pipeline: Rare variant analysis methods for WGS data
 Maintainer: Sheila Gaynor
-Version: 0.1
+Version: 1.0
 
 ## Description:
 Workflow to perform aggregate rare variant tests for sequencing studies and genetic data. Implements the variant-Set Test for Association using Annotation infoRmation (STAAR) procedure, as well as SKAT, Burden, and ACAT tests for both continuous and dichotomous traits. The STAAR method incorporates qualitative functional categories and quantitative complementary functional annotations (Li and Li et al, 2020). The workflow accounts for population structure and relatedness, and scales for large whole genome sequencing studies.
 
 ## Functionality:
-The workflow contains a few key steps. The workflow fits a null model for testing, incorporating the outcome, covariates, and kinship (optional). The workflow then uses the null model, genotypes, and aggregation units (optional) to run rare variant association analyses.
+The workflow contains two key steps. The workflow fits a null model for testing, incorporating the outcome, covariates, and kinship (optional). The workflow then uses the null model, genotypes, and aggregation units (optional) to run rare variant association analyses.
 
-## Required inputs:
+## Funcional inputs:
 ### Null model inputs:
-- **pheno_file**: [file] File name of phenotype file
-- **null_file**: [string] String for naming the null model file
-- **sample_id**: [string] Column name of observation/id variable  
-- **outcome**: [string] Column name of outcome variable  
-- **outcome_type**: [string] Continuous or Dichotomous  
+- **pheno_file**: [file] file containing the outcome, covariates for the null model (.csv)
+- **null_file**: [file] file containing output from null model fitting via STAAR (.Rds)
+- **sample_name**: [string] column name in pheno_file for observation IDs (string)
+- **outcome_name**: [string] column name in pheno_file for outcome (string)
+- **outcome_type**: [string] type of variable outcome_name in phenofile is, 'continuous' or 'dichotomous' [default] (string)
+- **covariate_names**: [string] optional, comma-separated names of covariate variables in pheno_file to be treated as covariates (string)
+- **kinship_file**: [file] optional, file containing the kinship matrix for related null model (.Rds or .Rdata)
+- **het_var_name**: [string] optional, column name in pheno_file or group for heteroscedastic errors (string)
 
 ### Association test inputs:
-- **geno_files**: [file] File name of GDS containing genotypes 
-- **results_file**: [string] String for naming the results file
+- **null_file**: [file] file containing output from null model fitting via STAAR (.Rds)
+- **geno_file**: [file] annotated GDS file containing the given annotation channels (.gds)
+- **annot_file**: [file] file containing annotations as input (.Rds)
+- **results_file**: [string] string of name of results file output (string)
+- **agds_file**: [string] string indicating whether input geno is an agds file containing the annotations, 'None' [default] (string)
+- **agds_annot_channels**: [string] comma-separated names of channels in agds to be treated as annotations, 'None' [default] (string)
+- **agg_file**: [file] file containing the aggregation units for set-based analysis (.Rds)
+- **cond_file**: [file] file containing the variants to be conditioned upon (.Rds)
+- **cond_geno_files**: [file] file containing the genotypes for conditional analysis; often same as geno_file (.gds)
+- **cond_file**: [file] file containing units/windows for candidate sets of interest (.Rds)
+- **maf_thres**: [int] AF threshold below which variants will be considered in rare variant analysis, 0.05 [default] (numeric)
+- **mac_thres**: [int] AC threshold above which variants will be considered in rare variant analysis, 1 [default] (numeric)
+- **window_length**: [int] length of window for region-based analysis, 2000 [default] (numeric)
+- **step_length**: [int] length of overlap for region-based analysis, 1000 [default] (numeric)
+- **num_cores**: [int] number of cores to be used in parallelized analysis, 3 [default] (numeric)
+- **num_chunk_divisions**: [int] for agg units, number of units to consider at a time within a parallel loop; for region-based, length of chunk for windows to consider at a time within a parallel loop, 3 [default] (numeric)
+
+
 
 ## Resulting output:
 The workflow produces a copy of the null model (.Rds) and results of the aggregation test in a compressed file (.gz).

@@ -16,7 +16,7 @@ args <- commandArgs(T)
 # File inputs
 pheno_file <- args[1]
 null_file <- args[2]
-# Variables
+# Analysis inputs
 sample_name <- args[3]
 outcome_name <- args[4]
 outcome_type <- args[5]
