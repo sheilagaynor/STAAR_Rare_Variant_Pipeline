@@ -1,14 +1,14 @@
 # Description: Run genomewide analysis using the STAAR package.
 # Inputs:
 # null_file : file containing output from null model fitting via STAAR (.Rds)
-# geno_file : annotated GDS file containing the given annotation channels (.gds)
+# geno_file : file containing genotypes for at least all individuals from null model, optionally containing the given annotation channels (.gds)
 # annot_file : file containing annotations as input with columns 'chr', 'pos', 'ref', 'alt' (.Rds, .Rdata, .csv)
 # results_file : string of name of results file output (string)
 # agds_file : string indicating whether input geno is an agds file containing the annotations, 'None' if not provided (string)
 # agds_annot_channels : comma-separated names of channels in agds to be treated as annotations (string)
 # agg_file : file containing the aggregation units for set-based analysis with columns 'chr', 'pos', 'ref', 'alt', 'group_id' (.Rds, .Rdata, .csv)
 # cond_file : file containing the variants to be conditioned upon with columns 'chr', 'pos', 'ref', 'alt' (.Rds, .Rdata, .csv)
-# cond_geno_files : file containing the genotypes for conditional analysis; often same as geno_file (.gds)
+# cond_geno_files : files containing genotypes for at least all individuals from null model for conditional analysis; often same as geno_file (.gds)
 # cand_file : file containing units/windows for candidate sets of interest with columns 'group_id' or 'chr', 'start', 'end' (.Rds, .Rdata, .csv)
 # maf_thres : AF threshold below which variants will be considered in rare variant analysis, 0.05 default (numeric)
 # mac_thres : AC threshold above which variants will be considered in rare variant analysis, 1 default (numeric)
@@ -47,9 +47,9 @@ num_chunk_divisions <- as.numeric(args[16])
 get_file <- function(file_from_args,file_type){
   # Read in file
   cat('Loading File: ',file_from_args,'\n')
-  if (grepl('Rda$',kinship_file_from_args,ignore.case=TRUE) | grepl('Rdata$',kinship_file_from_args,ignore.case=TRUE)){
+  if (grepl('Rda$',file_from_args,ignore.case=TRUE) | grepl('Rdata$',file_from_args,ignore.case=TRUE)){
     file_in <- get(load(file_from_args))
-  } else if (grepl('Rds$',kinship_file_from_args,ignore.case=TRUE)){
+  } else if (grepl('Rds$',file_from_args,ignore.case=TRUE)){
     file_in <- readRDS(file_from_args) 
   } else {
     file_in <- fread(file_from_args,stringsAsFactors=F,sep=',',header=T,data.table=F)
@@ -103,23 +103,22 @@ suppressMessages(library(data.table))
 null_model <- readRDS(null_file)
 geno_all <- seqOpen(geno_file)
 cat('Read in provided null model and genotype files \n')
+# Read in files: optional files as provided
 if (annot_file=='None' & agds_file=='None'){
-  cat('No annotation file provided, proceeding without annotations \n')
+  cat('No annotation file or aGDS provided, proceeding without annotations \n')
 } else if (annot_file!='None' & agds_file=='None') {
   annot_table <- get_file(annot_file,'Annotation')
-  cat('Read in provided annotation file \n')
 }
 if (agg_file!='None'){
   cat('Aggregate testing based on grouping file will be used \n')
   agg_units <- get_file(agg_file,'Aggregation')
 } else {
-  window_length <- ifelse(window_length>0, window_length, 5000)
-  step_length <- ifelse(step_length>0, step_length, window_length/2.0)
+  window_length <- ifelse(window_length>0, window_length, 2000)
+  step_length <- ifelse(step_length>0, step_length, 1000)
   cat(paste0('Sliding window testing will be done with window length: ',window_length,', step length: ',step_length, ' \n'))
 }
 if (cand_file!='None'){
   cand_in <- get_file(cand_file,'Candidate')
-  cat('Read in provided candidate unit file \n')
   if (agg_file!='None' & any(names(cand_in)=='group_id')){
     agg_units <- agg_units[agg_units$group_id %in% cand_in$group_id,]
     cat("Candidate aggregate testing based on groups to be run \n")
@@ -149,7 +148,7 @@ if (agds_file!='None'){
 variant_info <- variantInfo(geno_all, alleles = FALSE, expanded=FALSE)
 chr <- variant_info$chr[1]
 if(length(unique(chr)) > 1) stop("Multiple chromosomes detected; terminating \n")
-chr = chr[1] 
+chr <- chr[1] 
 #Get the aggregation units
 if(agg_file!='None'){
   chunk <- function(x,n) split(x, cut(seq_along(x), n, labels = FALSE))
@@ -166,12 +165,12 @@ if(agg_file!='None'){
       x <- grange[i]
       window.start <- seq(BiocGenerics::start(x), BiocGenerics::end(x), x$seg.length)
       GRanges(seqnames = seqnames(x), IRanges(window.start, width = x$seg.length))}))
-    n_chunk  <- length(range_data)
+    n_chunk  <- length(range_data) ; rm(grange_df)
   } else {
     #Get the genome chunks for windows from candidate input
     grange_df <- data.frame(chr=cand_in$chr, start=cand_in$start, end=cand_in$end)
     range_data <- makeGRangesFromDataFrame(grange_df)
-    n_chunk <- length(range_data)
+    n_chunk <- length(range_data) ; rm(grange_df)
   }
 }
 seqClose(geno_all)
@@ -202,7 +201,7 @@ if (cond_file != 'None'){
 
 #####################
 # Function for running tests on the large chunk
-test_chunk <- function( indx ) {
+test_chunk <- function( indx ){
   print(paste0('Iteration: ', indx))
   #Read in genotype data
   geno <- seqOpen(geno_file)
@@ -218,26 +217,24 @@ test_chunk <- function( indx ) {
     agg_var <- aggVarList[names(aggVarList) %in% chunk(names(aggVarList),num_chunk_divisions)[[indx]]]
     seqSetFilter(geno, variant.sel = agg_var, verbose = TRUE)
     #Subset to rare variants for efficiency
-    geno_variant_id <- seqGetData(geno,'variant.id')
-    if (length(geno_variant_id)>1){
+    chunk_variant_id <- seqGetData(geno,'variant.id')
+    if (length(chunk_variant_id)>1){
       freq_vec <- seqAlleleFreq(geno)
       rare_freq_inc <- ((freq_vec <= maf_thres) | (1 - freq_vec <= maf_thres)) & (freq_vec != 0) & (freq_vec != 1)
       ct_vec <- seqAlleleCount(geno)
       rare_ct_inc <- (ct_vec > mac_thres)
-      seqSetFilter(geno, variant.id=geno_variant_id[rare_freq_inc & rare_ct_inc], verbose = TRUE)
+      seqSetFilter(geno, variant.id=chunk_variant_id[rare_freq_inc & rare_ct_inc], verbose = TRUE)
       rm(freq_vec); rm(rare_freq_inc); rm(rare_ct_inc)
       #Subset annotations for efficiency
       if(annot_file!='None'){
-        geno_variant_info <- variantInfo(geno, alleles = TRUE, expanded=FALSE)
-        geno_matching <- paste(geno_variant_info$chr, geno_variant_info$pos, geno_variant_info$ref, geno_variant_info$alt, sep='_')
+        chunk_variant_id <- variantInfo(geno, alleles = TRUE, expanded=FALSE)
+        geno_matching <- paste(chunk_variant_id$chr, chunk_variant_id$pos, chunk_variant_id$ref, chunk_variant_id$alt, sep='_')
         annot_matching <- paste(annot_table$chr, annot_table$pos, annot_table$ref, annot_table$alt, sep='_')
         annot_chunk <- annot_table[annot_matching %in% geno_matching,]
       }
       #Get iterator for looping tests
       if(length(seqGetData(geno, "variant.id"))>1){
-        if(agg_file!='None'){
-          iterator <- SeqVarListIterator(geno, agg_var, verbose = T)
-        } 
+        iterator <- SeqVarListIterator(geno, agg_var, verbose = T)
         var_info_iter <- list(variantInfo(iterator))
         iter <- 2
         while(iterateFilter(iterator)) {
@@ -246,14 +243,12 @@ test_chunk <- function( indx ) {
         var_info_iter <- Filter(function(x) nrow(x) > 0, var_info_iter)
         results <- c()
         for ( var_set in 1:length(var_info_iter)) {
+          seqSetFilter(geno, sample.id=pheno_id, variant.id=var_info_iter[[var_set]]$variant.id, verbose = TRUE)
           if (annot_file=='None' & agds_annot_channels=='None'){
             ###############################
             #Proceed without annotations
-            #Subset to the genotypes of interest
-            seqSetFilter(geno, sample.id=pheno_id, variant.id=var_info_iter[[var_set]]$variant.id, verbose = TRUE)
-            # Match the genotype and phenotype ids
+            #Subset to the genotypes of interest, match to phenotypes
             id.genotype.match <- match(pheno_id, seqGetData(geno,"sample.id"))
-            ## Get genotype	
             genotypes <- seqGetData(geno, "$dosage")
             genotypes <- genotypes[id.genotype.match,]
             pvalues <- 0
@@ -262,120 +257,106 @@ test_chunk <- function( indx ) {
             } else {
               try(pvalues <- STAAR_cond(genotypes,cond_matrix,null_model))
             }
-            if(class(pvalues)=="list" & agg_file!='None'){
-              results_temp <- c(chr, names(agg_var[var_set]), unlist(pvalues[-2]))
-              results <- rbind(results,results_temp)
-            } 
           } else if(annot_file=='None' & agds_annot_channels!='None') {
             ###############################
             #Proceed with aGDS annotations
-            #Subset to the genotypes of interest
-            seqSetFilter(geno, sample.id=pheno_id, variant.id=var_info_iter[[var_set]]$variant.id, verbose = TRUE)
-            # Match the genotype and phenotype ids
+            #Subset to the genotypes of interest, match to phenotypes
             id.genotype.match <- match(pheno_id, seqGetData(geno,"sample.id"))
-            ## Get genotype	
             genotypes <- seqGetData(geno, "$dosage")
             genotypes <- genotypes[id.genotype.match,]
             ## Get annotations
             annot_str_spl <- unlist(strsplit(agds_annot_channels, split=","))
             annot_tab <- c()
             for (kk in 1:length(annot_str_spl)){
-              annot_tab <- cbind( annot_tab, seqGetData(geno_all, annot_str_spl[kk]))
+              annot_tab <- cbind(annot_tab, seqGetData(geno_all, annot_str_spl[kk]))
             }
-            annot_df <- data.frame(annot_tab)
+            annot_chunk <- data.frame(annot_tab) ; rm(annot_tab)
             pvalues <- 0
             if(cond_file=='None'){
-              try(pvalues <- STAAR(genotypes,null_model,annot_df))
+              try(pvalues <- STAAR(genotypes,null_model,annot_chunk))
             } else {
-              try(pvalues <- STAAR_cond(genotypes,cond_matrix,null_model,annot_df))
+              try(pvalues <- STAAR_cond(genotypes,cond_matrix,null_model,annot_chunk))
             }
-            if(class(pvalues)=="list" & agg_file!='None'){
-              results_temp <- c(chr, names(agg_var[var_set]), unlist(pvalues[-2]))
-              results <- rbind(results,results_temp)
-            } 
           } else {
             ###############################
             #Proceed with annotations
             #Subset to the genotypes of interest
-            seqSetFilter(geno, sample.id=pheno_id, variant.id=var_info_iter[[var_set]]$variant.id, verbose = TRUE)
             geno_iter_matching <- paste(var_info_iter[[var_set]]$chr, var_info_iter[[var_set]]$pos, var_info_iter[[var_set]]$ref, var_info_iter[[var_set]]$alt, sep='_')
             annot_iter_matching <- paste(annot_chunk$chr, annot_chunk$pos, annot_chunk$ref, annot_chunk$alt, sep='_')
             annot_iter <- annot_chunk[ annot_iter_matching %in% geno_iter_matching,]; setDT(annot_iter)
             variant_id_iter <- merge(var_info_iter[[var_set]], annot_iter, by=c('chr','pos','ref','alt'))
             if (!is.null(dim(annot_iter))){
               seqSetFilter(geno, sample.id=pheno_id, variant.id=variant_id_iter$variant.id, verbose = TRUE)
-              #Match the genotype and annotation data
+              #Match the genotype, annotation, phenotype, data 
               geno_info_matching <- variantInfo(geno, alleles = TRUE, expanded=FALSE)
               geno_matching <- paste(geno_info_matching$chr, geno_info_matching$pos, geno_info_matching$ref, geno_info_matching$alt, sep='_')
               annot_matching <- paste(annot_iter$chr, annot_iter$pos, annot_iter$ref, annot_iter$alt, sep='_')
-              id.variant.match <- match(annot_matching, geno_matching)
-              annot_in <- as.data.frame(annot_iter[, c("chr","pos","ref","alt"):=NULL])
-              # Match the genotype and phenotype ids
-              id.genotype.match <- match(pheno_id, seqGetData(geno,"sample.id"))
-              ## Get genotype	
+              geno_annot_var <- intersect(geno_matching, annot_matching)
+              annot_chunk <- annot_iter[match(geno_annot_var,annot_matching),]
+              annot_chunk <- as.data.frame(annot_chunk[, c("chr","pos","ref","alt"):=NULL])
+              sample.id.match <- match(pheno_id, seqGetData(geno,"sample.id"))
               genotypes <- seqGetData(geno, "$dosage")
-              genotypes <- genotypes[id.genotype.match,id.variant.match]
+              genotypes <- genotypes[sample.id.match,match(geno_annot_var,geno_matching),]
               pvalues <- 0
               if(cond_file=='None'){
-                try(pvalues <- STAAR(genotypes,null_model,annot_in))
+                try(pvalues <- STAAR(genotypes,null_model,annot_chunk))
               } else {
-                try(pvalues <- STAAR_cond(genotypes,cond_matrix,null_model,annot_in))
+                try(pvalues <- STAAR_cond(genotypes,cond_matrix,null_model,annot_chunk))
               }
-              if(class(pvalues)=="list" & agg_file!='None'){
-                results_temp <- c(chr, names(agg_var[var_set]), unlist(pvalues[-2]))
-                results <- rbind(results,results_temp)
-              } 
             }
           }
+          if(class(pvalues)=="list"){
+            results_temp <- c(chr, names(agg_var[var_set]), unlist(pvalues[-2]))
+            results <- rbind(results,results_temp)
+          } 
           seqResetFilter(geno)
         }
       }
     }
   }
-  
+
   #Next for window based
   if(agg_file=='None' & cand_file=='None'){
     #Get variants in region
     range_data <- resize(range_data, width(range_data) + window_length, fix = "start")
     seg <- range_data[indx]
     #Extract variants in region
-    variant_info_chunk <- variantInfo(geno, alleles = FALSE, expanded=FALSE)
-    indx_vars <- (variant_info_chunk$pos>=start(seg@ranges)) & (variant_info_chunk$pos<= end(seg@ranges))
+    variant_info <- variantInfo(geno, alleles = FALSE, expanded=FALSE)
+    indx_vars <- (variant_info$pos>=start(seg@ranges)) & (variant_info$pos<=end(seg@ranges))
     if (agds_file!='None'){
-      seqSetFilter(geno,sample.id=pheno_id,variant.id=variant_info_chunk$variant.id[SNVlist & indx_vars])
+      seqSetFilter(geno,sample.id=pheno_id,variant.id=variant_info$variant.id[SNVlist & indx_vars])
     } else {
-      seqSetFilter(geno,sample.id=pheno_id,variant.id=variant_info_chunk$variant.id[indx_vars])
+      seqSetFilter(geno,sample.id=pheno_id,variant.id=variant_info$variant.id[indx_vars])
     }
     #Subset to rare variants for efficiency or break out
-    geno_variant_id <- seqGetData(geno,'variant.id')
-    if (length(geno_variant_id)>1) {
+    chunk_variant_id <- seqGetData(geno,'variant.id')
+    if (length(chunk_variant_id)>1) {
       freq_vec <- seqAlleleFreq(geno)
       rare_freq_inc <- ((freq_vec <= maf_thres) | (1 - freq_vec <= maf_thres)) & (freq_vec != 0) & (freq_vec != 1)
       ct_vec <- seqAlleleCount(geno)
       rare_ct_inc <- (ct_vec > mac_thres)
-      seqSetFilter(geno, variant.id=geno_variant_id[rare_freq_inc & rare_ct_inc], verbose = TRUE)
+      seqSetFilter(geno, variant.id=chunk_variant_id[rare_freq_inc & rare_ct_inc], verbose = TRUE)
       rm(freq_vec); rm(rare_freq_inc); rm(rare_ct_inc)
       # Match the genotype and phenotype ids
-      id.genotype.match <- match(pheno_id, seqGetData(geno,"sample.id"))
-      # Get genotype as matrix
+      sample.id.match <- match(pheno_id, seqGetData(geno,"sample.id"))
       genotypes <- seqGetData(geno, "$dosage")
-      genotypes <- genotypes[id.genotype.match,]
+      genotypes <- genotypes[sample.id.match,]
       geno_variant_rare_id <- variantInfo(geno, alleles = TRUE, expanded=FALSE)
-      # Get annotations
+      # Get annotations if provided
       if(annot_file=='None' & agds_annot_channels!='None') {
         # Get annotations from agds
         annot_str_spl <- unlist(strsplit(agds_annot_channels, split=","))
         annot_tab <- c()
         for (kk in 1:length(annot_str_spl)){
-          annot_tab <- cbind( annot_tab, seqGetData(geno, annot_str_spl[kk]))
+          annot_tab <- cbind(annot_tab, seqGetData(geno, annot_str_spl[kk]))
         }
         annot_chunk <- data.frame(annot_tab)
-      }  else if(annot_file!='None'){ ##CHECK THIS
+      }  else if(annot_file!='None'){ 
         geno_matching <- paste(geno_variant_rare_id$chr, geno_variant_rare_id$pos, geno_variant_rare_id$ref, geno_variant_rare_id$alt, sep='_')
         annot_matching <- paste(annot_table$chr, annot_table$pos, annot_table$ref, annot_table$alt, sep='_')
         geno_annot_var <- intersect(geno_matching, annot_matching)
         annot_chunk <- annot_table[match(geno_annot_var,annot_matching),]
-        genotypes <- genotypes[match(geno_annot_var,geno_matching),]
+        genotypes <- genotypes[,match(geno_annot_var,geno_matching)]
         geno_variant_rare_id <- variantInfo(geno, alleles = TRUE, expanded=FALSE)[match(geno_annot_var,geno_matching),]
       }
       #Get the genome chunks within this iteration for windows
@@ -429,19 +410,19 @@ test_chunk <- function( indx ) {
       seqSetFilter(geno,sample.id=pheno_id,variant.id=variant_info_chunk$variant.id[indx_vars])
     }
     #Subset to rare variants for efficiency or break out
-    geno_variant_id <- seqGetData(geno,'variant.id')
-    if (length(geno_variant_id)>1) {
+    chunk_variant_id <- seqGetData(geno,'variant.id')
+    if (length(chunk_variant_id)>1) {
       freq_vec <- seqAlleleFreq(geno)
       rare_freq_inc <- ((freq_vec <= maf_thres) | (1 - freq_vec <= maf_thres)) & (freq_vec != 0) & (freq_vec != 1)
       ct_vec <- seqAlleleCount(geno)
       rare_ct_inc <- (ct_vec > mac_thres)
-      seqSetFilter(geno, variant.id=geno_variant_id[rare_freq_inc & rare_ct_inc], verbose = TRUE)
+      seqSetFilter(geno, variant.id=chunk_variant_id[rare_freq_inc & rare_ct_inc], verbose = TRUE)
       rm(freq_vec); rm(rare_freq_inc); rm(rare_ct_inc)
       # Match the genotype and phenotype ids
-      id.genotype.match <- match(pheno_id, seqGetData(geno,"sample.id"))
+      sample.id.match <- match(pheno_id, seqGetData(geno,"sample.id"))
       # Get genotype as matrix
       genotypes <- seqGetData(geno, "$dosage")
-      genotypes <- genotypes[id.genotype.match,]
+      genotypes <- genotypes[sample.id.match,]
       geno_variant_rare_id <- variantInfo(geno, alleles = TRUE, expanded=FALSE)
       # Get annotations
       if(annot_file=='None' & agds_annot_channels!='None') {
@@ -457,16 +438,16 @@ test_chunk <- function( indx ) {
         annot_matching <- paste(annot_table$chr, annot_table$pos, annot_table$ref, annot_table$alt, sep='_')
         geno_annot_var <- intersect(geno_matching, annot_matching)
         annot_chunk <- annot_table[match(geno_annot_var,annot_matching),]
-        genotypes <- genotypes[match(geno_annot_var,geno_matching),]
+        genotypes <- genotypes[,match(geno_annot_var,geno_matching)]
         geno_variant_rare_id <- variantInfo(geno, alleles = TRUE, expanded=FALSE)[match(geno_annot_var,geno_matching),]
       }
       #Genome chunks is the window of interest
       results <- c()
       for ( window_indx in 1:length(range_data)) {
         # Select the region from the geno matrix
-        geno_region <- genotypes[,(geno_variant_rare_id$pos>= start(range_data_chunk[window_indx]@ranges)) & (geno_variant_rare_id$pos<= end(range_data_chunk[window_indx]@ranges))]
+        geno_region <- genotypes[,(geno_variant_rare_id$pos>= start(range_data[window_indx]@ranges)) & (geno_variant_rare_id$pos<= end(range_data[window_indx]@ranges))]
         # Select annotations from chunk matrix
-        annot_region <- annot_chunk[(geno_variant_rare_id$pos>= start(range_data_chunk[window_indx]@ranges)) & (geno_variant_rare_id$pos<= end(range_data_chunk[window_indx]@ranges)),]
+        annot_region <- annot_chunk[(geno_variant_rare_id$pos>= start(range_data[window_indx]@ranges)) & (geno_variant_rare_id$pos<= end(range_data[window_indx]@ranges)),]
         pvalues <- 0
         if(cond_file=='None'){
           if (annot_file=='None' & agds_annot_channels=='None'){
@@ -482,7 +463,7 @@ test_chunk <- function( indx ) {
           }
         }
         if(class(pvalues)=="list") {
-          results_temp <- c(chr, start(range_data_chunk[window_indx]@ranges), end(range_data_chunk[window_indx]@ranges), unlist(pvalues[-2]))
+          results_temp <- c(chr, start(range_data[window_indx]@ranges), end(range_data[window_indx]@ranges), unlist(pvalues[-2]))
           results <- rbind(results,results_temp)
         }
       }
@@ -521,8 +502,7 @@ run_analysis <- function( n_cores ){
 
 #Clean up results
 results <- run_analysis( n_cores )
-if(!is.null(results))
-{
+if(!is.null(results)){
   colnames(results) <- colnames(results, do.NULL = FALSE, prefix = "col")
   if(agg_file!='None'){
     colnames(results)[1:2] <- c('chr','group_id')
