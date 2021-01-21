@@ -9,15 +9,18 @@ Workflow to perform aggregate rare variant tests for sequencing studies and gene
 The workflow contains two key steps. The workflow fits a null model for testing, incorporating the outcome, covariates, and kinship (optional). The workflow then uses the null model, genotypes, and aggregation units (optional) to run rare variant association analyses.
 
 ## Funcional inputs:
-### Null model inputs:
+### Null model R/WDL inputs:
 - **pheno_file**: [file] file containing the outcome, covariates for the null model (.csv)
-- **null_file**: [file] file containing output from null model fitting via STAAR (.Rds)
+- **null_file**: [string] string containing prefix for .Rds output from null model fitting via STAAR (string)
 - **sample_name**: [string] column name in pheno_file for observation IDs (string)
 - **outcome_name**: [string] column name in pheno_file for outcome (string)
-- **outcome_type**: [string] type of variable outcome_name in phenofile is, 'continuous' or 'dichotomous' [default] (string)
-- **covariate_names**: [string] optional, comma-separated names of covariate variables in pheno_file to be treated as covariates (string)
-- **kinship_file**: [file] optional, file containing the kinship matrix for related null model (.Rds or .Rdata)
-- **het_var_name**: [string] optional, column name in pheno_file or group for heteroscedastic errors (string)
+- **outcome_type**: [string] type of variable of outcome, outcome_name in pheno_file, 'continuous' or 'dichotomous' (string)
+- **covariate_names**: [string] optional, column names in pheno_file of covariate variables, as comma-separated string, to be treated as covariates (string)
+- **kinship_file**: [file] optional, file containing the kinship matrix for null model with relatedness, row names are sample_names (.Rds, .Rdata, .csv)
+- **het_var_name**: [string] optional, column name in pheno_file of variable for grouping heteroscedastic errors (string)
+### Null model WDL inputs:
+- **null_memory**: [int] requested memory in GB (numeric)
+- **null_disk**: [int] requested disk size (numeric)
 
 ### Association test inputs:
 - **null_file**: [file] file containing output from null model fitting via STAAR (.Rds)

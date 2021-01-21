@@ -131,7 +131,7 @@ task run_null_model {
     }
 
     runtime {
-        docker: "quay.io/sheilagaynor/staar_slim"
+        docker: "quay.io/sheilagaynor/staar_rare_variant_pipeline"
         memory: "${null_memory} GB"
         disks: "local-disk ${null_disk} HDD"
     }
@@ -165,7 +165,7 @@ task run_genomewide {
         Rscript /STAAR_genomewide.R ${null_file} ${geno_file} ${default="None" annot_file} ${results_file} ${default="None" agds_file} ${default="None" agds_annot_channels} ${default="None" agg_file} ${default="None" cond_file} ${default="None" sep="," cond_geno_files} ${default="None" cand_file} ${maf_thres} ${mac_thres} ${window_length} ${step_length} ${num_cores} ${num_chunk_div}
     }
     runtime {
-        docker: "quay.io/sheilagaynor/staar_slim"
+        docker: "quay.io/sheilagaynor/staar_rare_variant_pipeline"
         memory: "${test_memory} GB"
         disks: "local-disk ${test_disk} HDD"
     }

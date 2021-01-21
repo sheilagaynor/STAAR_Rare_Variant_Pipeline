@@ -46,7 +46,7 @@ task run_null_model {
     }
 
     runtime {
-        docker: "quay.io/sheilagaynor/staar_slim"
+        docker: "quay.io/sheilagaynor/staar_rare_variant_pipeline"
         memory: "${null_memory} GB"
         disks: "local-disk ${null_disk} HDD"
     }
