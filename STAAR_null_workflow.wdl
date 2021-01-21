@@ -1,12 +1,12 @@
 workflow STAAR_null {
     File pheno_file
     String null_file
-    String sample_id
-    String outcome
+    String sample_name
+    String outcome_name
     String? outcome_type = "continuous"
-    String? covariates = "NA"
+    String? covariate_names = "NA"
     File? kinship_file = "NA"
-    String? group_id = "NA"
+    String? het_var_name = "NA"
     Int? null_memory = 25
     Int? null_disk = 50
 
@@ -14,12 +14,12 @@ workflow STAAR_null {
             input:
                 pheno_file = pheno_file,
                 null_file = null_file,
-                sample_id = sample_id,
-                outcome = outcome,
+                sample_name = sample_name,
+                outcome_name = outcome_name,
                 outcome_type = outcome_type,
-                covariates = covariates,
+                covariate_names = covariate_names,
                 kinship_file = kinship_file,
-                group_id = group_id,
+                het_var_name = het_var_name,
                 null_memory = null_memory,
                 null_disk = null_disk
     }
@@ -32,17 +32,17 @@ workflow STAAR_null {
 task run_null_model {
     File pheno_file
     String null_file
-    String sample_id
-    String outcome
+    String sample_name
+    String outcome_name
     String outcome_type
-    String covariates
+    String covariate_names
     File kinship_file
-    String group_id
+    String het_var_name
     Int null_memory
     Int null_disk
 
     command {
-        Rscript /STAAR_null_model.R ${pheno_file} ${null_file} ${sample_id} ${outcome} ${outcome_type} ${covariates} ${kinship_file} ${group_id}
+        Rscript /STAAR_null_model.R ${pheno_file} ${null_file} ${sample_name} ${outcome_name} ${outcome_type} ${covariate_names} ${kinship_file} ${het_var_name}
     }
 
     runtime {

@@ -97,7 +97,7 @@ if ( kinship_file!='NA' ){
     kinship_analysis <- kinship_input[match(shared_samples,rownames(kinship_input)),match(shared_samples,rownames(kinship_input))]
     phenotype_analysis <- phenotype_input[match(shared_samples,phenotype_input[,sample_name]),] 
     rm(kinship_input); rm(phenotype_input)
-    cat('Matched Phenotypes with Kinship: no. rows:',nrow(phenotype_input),' no. cols:',ncol(phenotype_input),'\n')
+    cat('Matched Phenotypes with Kinship: no. rows:',nrow(phenotype_analysis),' no. cols:',ncol(phenotype_analysis),'\n')
   }
 } else {
   phenotype_analysis <- phenotype_input

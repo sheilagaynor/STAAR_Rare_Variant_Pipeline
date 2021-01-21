@@ -2,18 +2,18 @@
 # Inputs:
 # null_file : file containing output from null model fitting via STAAR (.Rds)
 # geno_file : annotated GDS file containing the given annotation channels (.gds)
-# annot_file : file containing annotations as input (.Rds)
+# annot_file : file containing annotations as input with columns 'chr', 'pos', 'ref', 'alt' (.Rds, .Rdata, .csv)
 # results_file : string of name of results file output (string)
 # agds_file : string indicating whether input geno is an agds file containing the annotations, 'None' if not provided (string)
 # agds_annot_channels : comma-separated names of channels in agds to be treated as annotations (string)
-# agg_file : file containing the aggregation units for set-based analysis (.Rds)
-# cond_file : file containing the variants to be conditioned upon (.Rds)
+# agg_file : file containing the aggregation units for set-based analysis with columns 'chr', 'pos', 'ref', 'alt', 'group_id' (.Rds, .Rdata, .csv)
+# cond_file : file containing the variants to be conditioned upon with columns 'chr', 'pos', 'ref', 'alt' (.Rds, .Rdata, .csv)
 # cond_geno_files : file containing the genotypes for conditional analysis; often same as geno_file (.gds)
-# cond_file : file containing units/windows for candidate sets of interest (.Rds)
-# maf_thres : AF threshold below which variants will be considered in rare variant analysis (numeric)
-# mac_thres : AC threshold above which variants will be considered in rare variant analysis (numeric)
-# window_length : length of window for region-based analysis (numeric)
-# step_length : length of overlap for region-based analysis (numeric)
+# cand_file : file containing units/windows for candidate sets of interest with columns 'group_id' or 'chr', 'start', 'end' (.Rds, .Rdata, .csv)
+# maf_thres : AF threshold below which variants will be considered in rare variant analysis, 0.05 default (numeric)
+# mac_thres : AC threshold above which variants will be considered in rare variant analysis, 1 default (numeric)
+# window_length : length of window for region-based analysis, 2000 default (numeric)
+# step_length : length of overlap for region-based analysis, 1000 default (numeric)
 # num_cores : number of cores to be used in parallelized analysis (numeric)
 # num_chunk_divisions : for agg units, number of units to consider at a time within a parallel loop;
 #                       for region-based, length of chunk for windows to consider at a time within a parallel loop (numeric)
@@ -43,24 +43,40 @@ num_cores <- as.numeric(args[15])
 num_chunk_divisions <- as.numeric(args[16])
 
 #####################
-# Functions for input processing
-get_agg <- function(agg_file_from_args){
-  cat('Loading Agg File:',agg_file_from_args,'\n')
-  if (grepl('Rda',agg_file_from_args,ignore.case=TRUE)){
-    agg <- get(load(agg_file_from_args))
-  } else if (grepl('Rds',agg_file_from_args,ignore.case=TRUE)){
-    agg <- readRDS(agg_file_from_args) 
+# Function for input file processing
+get_file <- function(file_from_args,file_type){
+  # Read in file
+  cat('Loading File: ',file_from_args,'\n')
+  if (grepl('Rda$',kinship_file_from_args,ignore.case=TRUE) | grepl('Rdata$',kinship_file_from_args,ignore.case=TRUE)){
+    file_in <- get(load(file_from_args))
+  } else if (grepl('Rds$',kinship_file_from_args,ignore.case=TRUE)){
+    file_in <- readRDS(file_from_args) 
   } else {
-    agg <- fread(agg_file_from_args,stringsAsFactors=F, sep=',', header=T,data.table=F)
+    file_in <- fread(file_from_args,stringsAsFactors=F,sep=',',header=T,data.table=F)
   }
-  cat('Loaded Agg Units: no. rows/units:',nrow(agg),' no. cols:',ncol(agg),'\n')
-  names(agg)[names(agg) %in%  c('CHR','CHROM','Chr','chrom')] = 'chr'	
-  agg$chr = sub('chr','',agg$chr)
-  names(agg) = tolower(names(agg))
-  agg
+  cat('Loaded ', file_type,' file: no. rows:',nrow(file_in),' no. cols:',ncol(file_in),'\n')
+  if (sum(names(file_in) %in% c('CHR','CHROM','Chr','chrom'))>0){
+    names(file_in)[names(file_in) %in%  c('CHR','CHROM','Chr','chrom')] = 'chr'	
+    file_in$chr = sub('chr','',file_in$chr)
+  }
+  names(file_in) = tolower(names(file_in))
+  # Check that required columns are available
+  if (file_type=='Annotation' | file_type=='Conditional'){
+    if ( !(sum(names(file_in) %in% c('chr','pos','ref','alt'))==4) ){
+      stop(paste0(file_type, " file does not provide necessary input \n")) }
+  }
+  if (file_type=='Aggregation'){
+    if ( !(sum(names(file_in) %in% c('chr','pos','ref','alt','group_id'))==5) ){
+      stop(paste0(file_type, " file does not provide necessary input \n")) }
+  }
+  if (file_type=='Candidate'){
+    if ( !(sum(names(file_in) %in% c('chr','start','end'))==3 | any(names(file_in)=='group_id')) ){
+      stop(paste0(file_type, " file does not provide necessary input \n")) }
+  }
+  file_in
 }
 #https://github.com/UW-GAC/analysis_pipeline/blob/master/TopmedPipeline/R/aggregateList.R
-#Credit to: smgogarten 
+#aggregateGRangesList function Credit to: smgogarten 
 aggregateGRangesList <- function(variants) {
   stopifnot(all(c("group_id", "chr", "pos") %in% names(variants)))
   groups <- unique(variants$group_id)
@@ -71,61 +87,6 @@ aggregateGRangesList <- function(variants) {
     mcols(gr) <- x[,cols]
     gr
   }))
-}
-get_annot <- function(annot_file_from_args){
-  cat('Loading Annot File:',annot_file_from_args,'\n')
-  if (grepl('Rda',annot_file_from_args,ignore.case=TRUE)){
-    annot <- get(load(annot_file_from_args))
-  } else if (grepl('Rds',annot_file_from_args,ignore.case=TRUE)){
-    annot <- readRDS(annot_file_from_args) 
-  } else {
-    annot <- fread(annot_file_from_args,stringsAsFactors=F, sep=',', header=T,data.table=F)
-  }
-  cat('Loaded Annot Units: no. rows/units:',nrow(annot),' no. cols:',ncol(annot),'\n')
-  names(annot)[names(annot) %in%  c('CHR','CHROM','Chr','chrom')] = 'chr'	
-  annot$chr = sub('chr','',annot$chr)
-  names(annot) = tolower(names(annot))
-  annot
-}
-get_cond <- function(cond_file_from_args){
-  cat('Loading Conditional File:',cond_file_from_args,'\n')
-  if (grepl('Rda',cond_file_from_args,ignore.case=TRUE)){
-    cond <- get(load(cond_file_from_args))
-  } else if (grepl('Rds',cond_file_from_args,ignore.case=TRUE)){
-    cond <- readRDS(cond_file_from_args) 
-  } else {
-    cond <- fread(cond_file_from_args,stringsAsFactors=F, sep=',', header=T,data.table=F)
-  }
-  cat('Loaded conditional variant lists: no. variants:',nrow(cond),'\n')
-  if (sum(names(cond) %in% c('CHR','CHROM','Chr','chrom'))>0){
-    names(cond)[names(cond) %in%  c('CHR','CHROM','Chr','chrom')] = 'chr'	
-    cond$chr = sub('chr','',cond$chr)
-  }
-  names(cond) = tolower(names(cond))
-  if ( !(sum(names(cond) %in% c('chr','pos','ref','alt'))==4) ){
-    stop("Conditional variant file does not provide necessary input \n")
-  }
-  cond
-}
-get_cand <- function(cand_file_from_args){
-  cat('Loading Cand File:',cand_file_from_args,'\n')
-  if (grepl('Rda',cand_file_from_args,ignore.case=TRUE)){
-    cand <- get(load(cand_file_from_args))
-  } else if (grepl('Rds',cand_file_from_args,ignore.case=TRUE)){
-    cand <- readRDS(cand_file_from_args) 
-  } else {
-    cand <- fread(cand_file_from_args,stringsAsFactors=F, sep=',', header=T,data.table=F)
-  }
-  cat('Loaded Candidate Units: no. candidate sets:',nrow(cand),'\n')
-  if (sum(names(cand) %in% c('CHR','CHROM','Chr','chrom'))>0){
-    names(cand)[names(cand) %in%  c('CHR','CHROM','Chr','chrom')] = 'chr'	
-    cand$chr = sub('chr','',cand$chr)
-  }
-  names(cand) = tolower(names(cand))
-  if ( !(sum(names(cand) %in% c('chr','start','end'))==3 | any(names(cand)=='group_id')) ){
-    stop("Candidate file does not provide necessary input \n")
-  }
-  cand
 }
 
 # Load packages
@@ -141,22 +102,23 @@ suppressMessages(library(data.table))
 # Read in files: null model, genotypes
 null_model <- readRDS(null_file)
 geno_all <- seqOpen(geno_file)
+cat('Read in provided null model and genotype files \n')
 if (annot_file=='None' & agds_file=='None'){
   cat('No annotation file provided, proceeding without annotations \n')
 } else if (annot_file!='None' & agds_file=='None') {
-  annot_table <- get_annot(annot_file)
+  annot_table <- get_file(annot_file,'Annotation')
   cat('Read in provided annotation file \n')
 }
 if (agg_file!='None'){
   cat('Aggregate testing based on grouping file will be used \n')
-  agg_units <- get_agg(agg_file)
+  agg_units <- get_file(agg_file,'Aggregation')
 } else {
   window_length <- ifelse(window_length>0, window_length, 5000)
   step_length <- ifelse(step_length>0, step_length, window_length/2.0)
   cat(paste0('Sliding window testing will be done with window length: ',window_length,', step length: ',step_length, ' \n'))
 }
 if (cand_file!='None'){
-  cand_in <- get_cand(cand_file)
+  cand_in <- get_file(cand_file,'Candidate')
   cat('Read in provided candidate unit file \n')
   if (agg_file!='None' & any(names(cand_in)=='group_id')){
     agg_units <- agg_units[agg_units$group_id %in% cand_in$group_id,]
@@ -217,7 +179,7 @@ seqClose(geno_all)
 #####################
 # Define, prepare conditional set
 if (cond_file != 'None'){
-  cond_in <- get_cond(cond_file)
+  cond_in <- get_file(cond_file,'Conditional')
   cond_geno_vec <- unlist(strsplit(cond_geno_files,','))
   cond_matrix <- c()
   for (cond_geno_file in cond_geno_vec){
@@ -490,7 +452,7 @@ test_chunk <- function( indx ) {
           annot_tab <- cbind( annot_tab, seqGetData(geno, annot_str_spl[kk]))
         }
         annot_chunk <- data.frame(annot_tab)
-      }  else if(annot_file!='None'){ ##CHECK THIS
+      }  else if(annot_file!='None'){
         geno_matching <- paste(geno_variant_rare_id$chr, geno_variant_rare_id$pos, geno_variant_rare_id$ref, geno_variant_rare_id$alt, sep='_')
         annot_matching <- paste(annot_table$chr, annot_table$pos, annot_table$ref, annot_table$alt, sep='_')
         geno_annot_var <- intersect(geno_matching, annot_matching)

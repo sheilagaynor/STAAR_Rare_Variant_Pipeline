@@ -22,27 +22,29 @@ The workflow contains two key steps. The workflow fits a null model for testing,
 - **null_memory**: [int] requested memory in GB (numeric)
 - **null_disk**: [int] requested disk size (numeric)
 
-### Association test inputs:
+### Association test R/WDL inputs:
 - **null_file**: [file] file containing output from null model fitting via STAAR (.Rds)
 - **geno_file**: [file] annotated GDS file containing the given annotation channels (.gds)
-- **annot_file**: [file] file containing annotations as input (.Rds)
+- **annot_file**: [file] file containing annotations as input with columns 'chr', 'pos', 'ref', 'alt' (.Rds, .Rdata, .csv)
 - **results_file**: [string] string of name of results file output (string)
 - **agds_file**: [string] string indicating whether input geno is an agds file containing the annotations, 'None' [default] (string)
 - **agds_annot_channels**: [string] comma-separated names of channels in agds to be treated as annotations, 'None' [default] (string)
-- **agg_file**: [file] file containing the aggregation units for set-based analysis (.Rds)
-- **cond_file**: [file] file containing the variants to be conditioned upon (.Rds)
+- **agg_file**: [file] file containing the aggregation units for set-based analysis with columns 'chr', 'pos', 'ref', 'alt', 'group_id' (.Rds, .Rdata, .csv)
+- **cond_file**: [file] file containing the variants to be conditioned upon with columns 'chr', 'pos', 'ref', 'alt' (.Rds, .Rdata, .csv)
 - **cond_geno_files**: [file] file containing the genotypes for conditional analysis; often same as geno_file (.gds)
-- **cond_file**: [file] file containing units/windows for candidate sets of interest (.Rds)
+- **cand_file**: [file] file containing units/windows for candidate sets of interest with columns 'group_id' or 'chr', 'start', 'end' (.Rds, .Rdata, .csv)
 - **maf_thres**: [int] AF threshold below which variants will be considered in rare variant analysis, 0.05 [default] (numeric)
 - **mac_thres**: [int] AC threshold above which variants will be considered in rare variant analysis, 1 [default] (numeric)
 - **window_length**: [int] length of window for region-based analysis, 2000 [default] (numeric)
 - **step_length**: [int] length of overlap for region-based analysis, 1000 [default] (numeric)
 - **num_cores**: [int] number of cores to be used in parallelized analysis, 3 [default] (numeric)
 - **num_chunk_divisions**: [int] for agg units, number of units to consider at a time within a parallel loop; for region-based, length of chunk for windows to consider at a time within a parallel loop, 3 [default] (numeric)
-
+### Association test WDL inputs:
+- **null_memory**: [int] requested memory in GB (numeric)
+- **null_disk**: [int] requested disk size (numeric)
 
 
 ## Resulting output:
-The workflow produces a copy of the null model (.Rds) and results of the aggregation test in a compressed file (.gz).
+The workflow produces a file containing the null model (.Rds) and results of the aggregation test in a compressed file (.gz).
 
 
