@@ -269,6 +269,7 @@ test_chunk <- function( indx ){
               annot_tab <- cbind(annot_tab, seqGetData(geno, annot_str_spl[kk]))
             }
             annot_chunk <- data.frame(annot_tab) ; rm(annot_tab)
+            names(annot_chunk) <- annot_str_spl
             pvalues <- 0
             if(cond_file=='None'){
               try(pvalues <- STAAR(genotypes,null_model,annot_chunk))
@@ -288,7 +289,7 @@ test_chunk <- function( indx ){
             annot_var_set <- annot_chunk[match(geno_annot_var,annot_matching),]
             genotypes_var_set <- genotypes[,match(geno_annot_var,geno_matching)]
             if (!is.null(dim(annot_var_set))){
-              annot_var_set <- as.data.frame(annot_var_set[, c("chr","pos","ref","alt"):=NULL])
+              annot_var_set <- annot_var_set[,!(names(annot_var_set) %in% c("chr","pos","ref","alt"))]
               pvalues <- 0
               if(cond_file=='None'){
                 try(pvalues <- STAAR(genotypes_var_set,null_model,annot_var_set))
@@ -342,6 +343,7 @@ test_chunk <- function( indx ){
           annot_tab <- cbind(annot_tab, seqGetData(geno, annot_str_spl[kk]))
         }
         annot_chunk <- data.frame(annot_tab)
+        names(annot_chunk) <- annot_str_spl
       }  else if(annot_file!='None'){ 
         geno_matching <- paste(geno_variant_rare_id$chr, geno_variant_rare_id$pos, geno_variant_rare_id$ref, geno_variant_rare_id$alt, sep='_')
         annot_matching <- paste(annot_table$chr, annot_table$pos, annot_table$ref, annot_table$alt, sep='_')
@@ -366,7 +368,7 @@ test_chunk <- function( indx ){
         geno_region <- genotypes[,(geno_variant_rare_id$pos>= start(range_data_chunk[window_indx]@ranges)) & (geno_variant_rare_id$pos<= end(range_data_chunk[window_indx]@ranges))]
         # Select annotations from chunk matrix
         annot_region <- annot_chunk[(geno_variant_rare_id$pos>= start(range_data_chunk[window_indx]@ranges)) & (geno_variant_rare_id$pos<= end(range_data_chunk[window_indx]@ranges)),]
-        annot_region <- as.data.frame(annot_region[, c("chr","pos","ref","alt"):=NULL])
+        annot_region <- annot_region[,!(names(annot_region) %in% c("chr","pos","ref","alt"))]
         pvalues <- 0
         if(cond_file=='None'){
           if (annot_file=='None' & agds_annot_channels=='None'){
@@ -423,13 +425,14 @@ test_chunk <- function( indx ){
           annot_tab <- cbind( annot_tab, seqGetData(geno, annot_str_spl[kk]))
         }
         annot_chunk <- data.frame(annot_tab)
+        names(annot_chunk) <- annot_str_spl
       }  else if(annot_file!='None'){
         geno_matching <- paste(geno_variant_rare_id$chr, geno_variant_rare_id$pos, geno_variant_rare_id$ref, geno_variant_rare_id$alt, sep='_')
         annot_matching <- paste(annot_table$chr, annot_table$pos, annot_table$ref, annot_table$alt, sep='_')
         geno_annot_var <- intersect(geno_matching, annot_matching)
         annot_chunk <- annot_table[match(geno_annot_var,annot_matching),]
         genotypes <- genotypes[,match(geno_annot_var,geno_matching)]
-        annot_chunk <- as.data.frame(annot_chunk[, c("chr","pos","ref","alt"):=NULL])
+        annot_chunk <- annot_chunk[,!(names(annot_chunk) %in% c("chr","pos","ref","alt"))]
       }
       #Genome chunks is the window of interest
       pvalues <- 0
