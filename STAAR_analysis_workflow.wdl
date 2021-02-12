@@ -166,7 +166,6 @@ task run_analysis {
     }
     runtime {
         docker: "quay.io/sheilagaynor/staar_rare_variant_pipeline"
-        cpu: "$num_cores"
         preemptible: 1
         maxRetries: 3
         memory: "${test_memory} GB"
