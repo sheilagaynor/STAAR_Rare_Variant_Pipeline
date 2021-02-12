@@ -1,5 +1,5 @@
 # Set base image
-FROM uwgac/r-3.6.3-mkl:latest
+FROM uwgac/r-3.6.3-mkl:3.6.3@sha256:b50536df2e6b1ce1d11261e422aaf08e86f6213bc660b0fd45ed61dc1eb7b4ee
 
 # Prepare image
 RUN sudo apt-get update && sudo apt-get -y install git
@@ -14,4 +14,4 @@ COPY STAAR_0.9.5.tar.gz /STAAR_0.9.5.tar.gz
 RUN Rscript -e 'install.packages("STAAR_0.9.5.tar.gz", repos=NULL, type="source")'
 
 # Copy in pipeline from GitHub
-RUN git clone https://github.com/sheilagaynor/STAAR_Rare_Variant_Pipeline.git
+RUN git clone https://github.com/sheilagaynor/staar_rare_variant_pipeline.git
