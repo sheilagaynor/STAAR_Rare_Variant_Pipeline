@@ -1,9 +1,9 @@
-workflow STAAR_genomewide {
+workflow STAAR_analysis {
 
     # run_null_model inputs
     File? null_file_precompute
     File? pheno_file
-    String? null_file
+    String? null_file_name
     String? sample_name
     String? outcome_name
     String? outcome_type = "continuous"
@@ -13,7 +13,7 @@ workflow STAAR_genomewide {
     Int? null_memory = 25
     Int? null_disk = 50
 
-    # run_genomewide inputs
+    # run_analysis inputs
     Array[File] geno_files
     Array[File]? annot_files
     String results_file
@@ -23,7 +23,7 @@ workflow STAAR_genomewide {
     File? cond_file
     Array[File]? cond_geno_files
     File? cand_file
-    Int? maf_thres = 0.05
+    Float? maf_thres = 0.05
     Int? mac_thres = 1
     Int? window_length = 2000
     Int? step_length = 1000
@@ -37,7 +37,7 @@ workflow STAAR_genomewide {
         call run_null_model {
             input:
                 pheno_file = pheno_file,
-                null_file = null_file,
+                null_file_name = null_file_name,
                 sample_name = sample_name,
                 outcome_name = outcome_name,
                 outcome_type = outcome_type,
@@ -58,7 +58,7 @@ workflow STAAR_genomewide {
         scatter (geno_annot_set in geno_annot_pairs) {
         File geno_in = geno_annot_set.left
         File annot_in = geno_annot_set.right
-            call run_genomewide {
+            call run_analysis {
                 input:
                     null_file = null_file,
                     geno_file = geno_in,
@@ -82,7 +82,7 @@ workflow STAAR_genomewide {
 
     if (!defined(annot_files)) {
         scatter (geno_in in geno_files) {
-            call run_genomewide as run_genomewide_annotfree {
+            call run_analysis as run_analysis_annotfree {
                 input:
                   null_file = null_file,
                   geno_file = geno_in,
@@ -107,8 +107,8 @@ workflow STAAR_genomewide {
 
     output {
         File null_model = null_file
-        Array[File]? result_genomewide = run_genomewide.results
-        Array[File]? result_genomewide_annotfree = run_genomewide_annotfree.results
+        Array[File]? result_analysis = run_analysis.results
+        Array[File]? result_analysis_annotfree = run_analysis_annotfree.results
     }
 }
 
@@ -116,7 +116,7 @@ workflow STAAR_genomewide {
 
 task run_null_model {
     File pheno_file
-    String null_file
+    String null_file_name
     String sample_name
     String outcome_name
     String outcome_type
@@ -141,7 +141,7 @@ task run_null_model {
     }
 }
 
-task run_genomewide {
+task run_analysis {
     File null_file
     File geno_file
     File? annot_file
@@ -162,10 +162,13 @@ task run_genomewide {
     Int test_disk
 
     command {
-        Rscript /STAAR_genomewide.R ${null_file} ${geno_file} ${default="None" annot_file} ${results_file} ${default="None" agds_file} ${default="None" agds_annot_channels} ${default="None" agg_file} ${default="None" cond_file} ${default="None" sep="," cond_geno_files} ${default="None" cand_file} ${maf_thres} ${mac_thres} ${window_length} ${step_length} ${num_cores} ${num_chunk_divisions}
+        Rscript /STAAR_analysis.R ${null_file} ${geno_file} ${default="None" annot_file} ${results_file} ${default="None" agds_file} ${default="None" agds_annot_channels} ${default="None" agg_file} ${default="None" cond_file} ${default="None" sep="," cond_geno_files} ${default="None" cand_file} ${maf_thres} ${mac_thres} ${window_length} ${step_length} ${num_cores} ${num_chunk_divisions}
     }
     runtime {
         docker: "quay.io/sheilagaynor/staar_rare_variant_pipeline"
+        cpu: "$num_cores"
+        preemptible: 1
+        maxRetries: 3
         memory: "${test_memory} GB"
         disks: "local-disk ${test_disk} HDD"
     }

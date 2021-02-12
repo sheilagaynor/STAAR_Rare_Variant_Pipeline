@@ -1,7 +1,7 @@
 # Description: Generate a null model using the STAAR package which provides a wrapper of the GMMAT package.
 # Inputs:
 # pheno_file : file containing the outcome, covariates for the null model (.csv)
-# null_file : string containing prefix for .Rds output from null model fitting via STAAR (string)
+# null_file_name : string containing prefix for .Rds output from null model fitting via STAAR (string)
 # sample_name : column name in pheno_file for observation IDs (string)
 # outcome_name : column name in pheno_file for outcome (string)
 # outcome_type : type of variable of outcome, outcome_name in pheno_file, 'continuous' or 'dichotomous' (string)
