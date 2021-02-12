@@ -164,6 +164,7 @@ task run_analysis {
     command {
         Rscript /STAAR_analysis.R ${null_file} ${geno_file} ${default="None" annot_file} ${results_file} ${default="None" agds_file} ${default="None" agds_annot_channels} ${default="None" agg_file} ${default="None" cond_file} ${default="None" sep="," cond_geno_files} ${default="None" cand_file} ${maf_thres} ${mac_thres} ${window_length} ${step_length} ${num_cores} ${num_chunk_divisions}
     }
+
     runtime {
         docker: "quay.io/sheilagaynor/staar_rare_variant_pipeline"
         preemptible: 1
@@ -171,6 +172,7 @@ task run_analysis {
         memory: "${test_memory} GB"
         disks: "local-disk ${test_disk} HDD"
     }
+    
     output {
         File results = select_first(glob("*.gz"))
     }
