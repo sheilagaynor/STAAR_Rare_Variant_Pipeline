@@ -127,7 +127,7 @@ task run_null_model {
     Int null_disk
 
     command {
-        Rscript /STAAR_null_model.R ${pheno_file} ${null_file} ${sample_name} ${outcome_name} ${outcome_type} ${covariate_names} ${kinship_file} ${het_var_name}
+        Rscript /STAAR_null_model.R ${pheno_file} ${null_file_name} ${sample_name} ${outcome_name} ${outcome_type} ${covariate_names} ${kinship_file} ${het_var_name}
     }
 
     runtime {
