@@ -366,11 +366,13 @@ test_chunk <- function( indx ){
       for ( window_indx in 1:length(range_data_chunk)) {
         # Select the region from the geno matrix
         geno_region <- genotypes[,(geno_variant_rare_id$pos>= start(range_data_chunk[window_indx]@ranges)) & (geno_variant_rare_id$pos<= end(range_data_chunk[window_indx]@ranges))]
+        print('Check annotation chunk existence')
         if (exists("annot_chunk")){
           # Select annotations from chunk matrix
           annot_region <- annot_chunk[(geno_variant_rare_id$pos>= start(range_data_chunk[window_indx]@ranges)) & (geno_variant_rare_id$pos<= end(range_data_chunk[window_indx]@ranges)),]
           annot_region <- annot_region[,!(names(annot_region) %in% c("chr","pos","ref","alt"))]
         }
+        print('Obtain p-values')
         pvalues <- 0
         if(cond_file=='None'){
           if (annot_file=='None' & agds_annot_channels=='None'){
