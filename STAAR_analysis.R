@@ -329,6 +329,7 @@ test_chunk <- function( indx ){
       rare_ct_inc <- (ct_vec > mac_thres)
       seqSetFilter(geno, variant.id=chunk_variant_id[rare_freq_inc & rare_ct_inc], verbose = TRUE)
       rm(freq_vec); rm(rare_freq_inc); rm(rare_ct_inc)
+      print('Completed subset by rare variants')
       # Match the genotype and phenotype ids
       sample.id.match <- match(pheno_id, seqGetData(geno,"sample.id"))
       genotypes <- seqGetData(geno, "$dosage")
@@ -356,11 +357,13 @@ test_chunk <- function( indx ){
       grange_df <- data.frame(chr=chr, start=start(range_data[indx]@ranges), end=end(range_data[indx]@ranges))
       grange <- makeGRangesFromDataFrame(grange_df)
       grange$seg.length <- step_length
+      print('Constructed grange object')
       #Get range data
       range_data_chunk <- do.call(c, lapply(seq_along(grange), function(i) {
         x <- grange[i]
         window.start <- seq(BiocGenerics::start(x), BiocGenerics::end(x), x$seg.length)
         GRanges(seqnames = seqnames(x), IRanges(window.start, width = window_length))}))
+      print('Obtained range_data_chunk, enter window loop')
       # Loop through the windows
       results <- c()
       for ( window_indx in 1:length(range_data_chunk)) {
