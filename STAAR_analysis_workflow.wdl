@@ -17,8 +17,8 @@ workflow STAAR_analysis {
     Array[File] geno_files
     Array[File]? annot_files
     String results_file
-    String? agds_file = "None"
-    String? agds_annot_channels = "None"
+    String? agds_file
+    String? agds_annot_channels
     File? agg_file
     File? cond_file
     Array[File]? cond_geno_files
