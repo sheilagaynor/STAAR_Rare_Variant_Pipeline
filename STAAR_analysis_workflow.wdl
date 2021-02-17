@@ -127,7 +127,7 @@ task run_null_model {
     Int null_disk
 
     command {
-        Rscript /staar_rare_variant_pipeline/STAAR_null_model.R ${pheno_file} ${null_file_name} ${sample_name} ${outcome_name} ${outcome_type} ${covariate_names} ${kinship_file} ${het_var_name}
+        Rscript /STAAR_null_model.R ${pheno_file} ${null_file_name} ${sample_name} ${outcome_name} ${outcome_type} ${covariate_names} ${kinship_file} ${het_var_name}
     }
 
     runtime {
@@ -162,7 +162,7 @@ task run_analysis {
     Int test_disk
 
     command {
-        Rscript /staar_rare_variant_pipeline/STAAR_analysis.R ${null_file} ${geno_file} ${default="None" annot_file} ${results_file} ${default="None" agds_file} ${default="None" agds_annot_channels} ${default="None" agg_file} ${default="None" cond_file} ${default="None" sep="," cond_geno_files} ${default="None" cand_file} ${maf_thres} ${mac_thres} ${window_length} ${step_length} ${num_cores} ${num_chunk_divisions}
+        Rscript /STAAR_analysis.R ${null_file} ${geno_file} ${default="None" annot_file} ${results_file} ${default="None" agds_file} ${default="None" agds_annot_channels} ${default="None" agg_file} ${default="None" cond_file} ${default="None" sep="," cond_geno_files} ${default="None" cand_file} ${maf_thres} ${mac_thres} ${window_length} ${step_length} ${num_cores} ${num_chunk_divisions}
     }
 
     runtime {
