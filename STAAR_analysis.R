@@ -210,6 +210,7 @@ test_chunk <- function( indx ){
   #First for gene based/agg unit based (candidate or full chromosome)
   #Agg unit option adapted from https://github.com/AnalysisCommons/genesis_wdl/blob/master/genesis_tests.R
   if(agg_file!='None'){
+    print('agg based')
     if (agds_file!='None'){
       seqSetFilter(geno,sample.id=pheno_id,variant.id=variant_id[SNVlist],verbose=F)	
     }
@@ -310,6 +311,7 @@ test_chunk <- function( indx ){
 
   #Next for window based
   if(agg_file=='None' & cand_file=='None'){
+    print('window based')
     #Get variants in region
     range_data <- resize(range_data, width(range_data) + window_length, fix = "start")
     #Extract variants in region
@@ -321,6 +323,7 @@ test_chunk <- function( indx ){
       seqSetFilter(geno,sample.id=pheno_id,variant.id=variant_info$variant.id[indx_vars])
     }
     #Subset to rare variants for efficiency or break out
+    print('Subset to rare variants for efficiency or break out')
     chunk_variant_id <- seqGetData(geno,'variant.id')
     if (length(chunk_variant_id)>1) {
       freq_vec <- seqAlleleFreq(geno)
@@ -400,6 +403,7 @@ test_chunk <- function( indx ){
   
   #Next for candidate window based
   if(agg_file=='None' & cand_file!='None'){
+    print('candidate window based')
     #Extract variants in region
     variant_info_chunk <- variantInfo(geno, alleles = FALSE, expanded=FALSE)
     indx_vars <- (variant_info_chunk$pos>=start(range_data[indx]@ranges)) & (variant_info_chunk$pos<=end(range_data[indx]@ranges))

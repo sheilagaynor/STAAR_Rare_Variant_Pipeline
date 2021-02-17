@@ -13,5 +13,5 @@ RUN Rscript -e 'BiocManager::install(c("SeqArray","gdsfmt","SeqVarTools","foreac
 COPY STAAR_0.9.5.tar.gz /STAAR_0.9.5.tar.gz
 RUN Rscript -e 'install.packages("STAAR_0.9.5.tar.gz", repos=NULL, type="source")'
 
-# Copy in pipeline from GitHub
-RUN git clone https://github.com/sheilagaynor/staar_rare_variant_pipeline.git
+# Copy in R scripts
+COPY STAAR_analysis.R STAAR_null_model.R /
