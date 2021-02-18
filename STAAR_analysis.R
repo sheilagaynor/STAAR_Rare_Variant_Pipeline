@@ -97,6 +97,7 @@ suppressMessages(library(SeqVarTools))
 suppressMessages(library(dplyr))
 suppressMessages(library(doMC))
 suppressMessages(library(GenomicRanges))
+suppressMessages(library(R.utils))
 suppressMessages(library(data.table))
 
 # Read in files: null model, genotypes
@@ -210,7 +211,6 @@ test_chunk <- function( indx ){
   #First for gene based/agg unit based (candidate or full chromosome)
   #Agg unit option adapted from https://github.com/AnalysisCommons/genesis_wdl/blob/master/genesis_tests.R
   if(agg_file!='None'){
-    print('agg based')
     if (agds_file!='None'){
       seqSetFilter(geno,sample.id=pheno_id,variant.id=variant_id[SNVlist],verbose=F)	
     }
@@ -311,7 +311,6 @@ test_chunk <- function( indx ){
 
   #Next for window based
   if(agg_file=='None' & cand_file=='None'){
-    print('window based')
     #Get variants in region
     range_data <- resize(range_data, width(range_data) + window_length, fix = "start")
     #Extract variants in region
@@ -323,7 +322,6 @@ test_chunk <- function( indx ){
       seqSetFilter(geno,sample.id=pheno_id,variant.id=variant_info$variant.id[indx_vars])
     }
     #Subset to rare variants for efficiency or break out
-    print('Subset to rare variants for efficiency or break out')
     chunk_variant_id <- seqGetData(geno,'variant.id')
     if (length(chunk_variant_id)>1) {
       freq_vec <- seqAlleleFreq(geno)
@@ -332,7 +330,6 @@ test_chunk <- function( indx ){
       rare_ct_inc <- (ct_vec > mac_thres)
       seqSetFilter(geno, variant.id=chunk_variant_id[rare_freq_inc & rare_ct_inc], verbose = TRUE)
       rm(freq_vec); rm(rare_freq_inc); rm(rare_ct_inc)
-      print('Completed subset by rare variants')
       # Match the genotype and phenotype ids
       sample.id.match <- match(pheno_id, seqGetData(geno,"sample.id"))
       genotypes <- seqGetData(geno, "$dosage")
@@ -360,25 +357,21 @@ test_chunk <- function( indx ){
       grange_df <- data.frame(chr=chr, start=start(range_data[indx]@ranges), end=end(range_data[indx]@ranges))
       grange <- makeGRangesFromDataFrame(grange_df)
       grange$seg.length <- step_length
-      print('Constructed grange object')
       #Get range data
       range_data_chunk <- do.call(c, lapply(seq_along(grange), function(i) {
         x <- grange[i]
         window.start <- seq(BiocGenerics::start(x), BiocGenerics::end(x), x$seg.length)
         GRanges(seqnames = seqnames(x), IRanges(window.start, width = window_length))}))
-      print('Obtained range_data_chunk, enter window loop')
       # Loop through the windows
       results <- c()
       for ( window_indx in 1:length(range_data_chunk)) {
         # Select the region from the geno matrix
         geno_region <- genotypes[,(geno_variant_rare_id$pos>= start(range_data_chunk[window_indx]@ranges)) & (geno_variant_rare_id$pos<= end(range_data_chunk[window_indx]@ranges))]
-        print('Check annotation chunk existence')
         if (exists("annot_chunk")){
           # Select annotations from chunk matrix
           annot_region <- annot_chunk[(geno_variant_rare_id$pos>= start(range_data_chunk[window_indx]@ranges)) & (geno_variant_rare_id$pos<= end(range_data_chunk[window_indx]@ranges)),]
           annot_region <- annot_region[,!(names(annot_region) %in% c("chr","pos","ref","alt"))]
         }
-        print('Obtain p-values')
         pvalues <- 0
         if(cond_file=='None'){
           if (annot_file=='None' & agds_annot_channels=='None'){
@@ -403,7 +396,6 @@ test_chunk <- function( indx ){
   
   #Next for candidate window based
   if(agg_file=='None' & cand_file!='None'){
-    print('candidate window based')
     #Extract variants in region
     variant_info_chunk <- variantInfo(geno, alleles = FALSE, expanded=FALSE)
     indx_vars <- (variant_info_chunk$pos>=start(range_data[indx]@ranges)) & (variant_info_chunk$pos<=end(range_data[indx]@ranges))
@@ -509,4 +501,4 @@ if(!is.null(results)){
 
 
 # Save output
-write.csv(results, file=gzfile(paste0(results_file,'_chr',chr,".csv.gz")), row.names = F)
+fwrite(results, file=paste0(results_file,'_chr',chr,".csv.gz"))
