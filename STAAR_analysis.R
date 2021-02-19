@@ -280,7 +280,7 @@ test_chunk <- function( indx ){
           } else {
             #Proceed with annotations
             #Subset to the genotypes, annots of interest, match to phenotypes
-            variant_info_var_set <- variantInfo(geno, alleles = FALSE, expanded=FALSE)
+            variant_info_var_set <- variantInfo(geno, alleles = TRUE, expanded=FALSE)
             sample.id.match <- match(pheno_id, seqGetData(geno,"sample.id"))
             genotypes <- seqGetData(geno, "$dosage")
             genotypes <- genotypes[sample.id.match,]
