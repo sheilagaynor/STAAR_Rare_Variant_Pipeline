@@ -290,7 +290,7 @@ test_chunk <- function( indx ){
             annot_var_set <- annot_chunk[match(geno_annot_var,annot_matching),]
             genotypes_var_set <- genotypes[,match(geno_annot_var,geno_matching)]
             if (!is.null(dim(annot_var_set))){
-              annot_var_set <- annot_var_set[,!(names(annot_var_set) %in% c("chr","pos","ref","alt"))]
+              annot_var_set <- annot_var_set[,!(names(annot_var_set) %in% c("variant.id","chr","pos","ref","alt"))]
               pvalues <- 0
               if(cond_file=='None'){
                 try(pvalues <- STAAR(genotypes_var_set,null_model,annot_var_set))
@@ -370,7 +370,7 @@ test_chunk <- function( indx ){
         if (exists("annot_chunk")){
           # Select annotations from chunk matrix
           annot_region <- annot_chunk[(geno_variant_rare_id$pos>= start(range_data_chunk[window_indx]@ranges)) & (geno_variant_rare_id$pos<= end(range_data_chunk[window_indx]@ranges)),]
-          annot_region <- annot_region[,!(names(annot_region) %in% c("chr","pos","ref","alt"))]
+          annot_region <- annot_region[,!(names(annot_region) %in% c("variant.id","chr","pos","ref","alt"))]
         }
         pvalues <- 0
         if(cond_file=='None'){
@@ -435,7 +435,7 @@ test_chunk <- function( indx ){
         geno_annot_var <- intersect(geno_matching, annot_matching)
         annot_chunk <- annot_table[match(geno_annot_var,annot_matching),]
         genotypes <- genotypes[,match(geno_annot_var,geno_matching)]
-        annot_chunk <- annot_chunk[,!(names(annot_chunk) %in% c("chr","pos","ref","alt"))]
+        annot_chunk <- annot_chunk[,!(names(annot_chunk) %in% c("variant.id","chr","pos","ref","alt"))]
       }
       #Genome chunks is the window of interest
       pvalues <- 0
