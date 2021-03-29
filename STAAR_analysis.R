@@ -175,6 +175,7 @@ if(agg_file!='None'){
   }
 }
 seqClose(geno_all)
+gc()
 
 #####################
 # Define, prepare conditional set
@@ -198,6 +199,7 @@ if (cond_file != 'None'){
   }
   cat('Prepared conditional variant lists: no. conditioning variants:',ncol(cond_matrix),'\n')
 }
+gc()
 
 
 #####################
@@ -463,6 +465,7 @@ test_chunk <- function( indx ){
     results <- data.frame()
   }
   seqClose(geno)
+  gc()
   results
 }
 
@@ -484,12 +487,14 @@ run_analysis <- function( n_cores ){
     }
   }
   cat("\nFinished analysis \n")
+  gc()
   out
 }
 
 
 # Run, clean up results
 results <- run_analysis( n_cores )
+gc()
 if(!is.null(results)){
   colnames(results) <- colnames(results, do.NULL = FALSE, prefix = "col")
   if(agg_file!='None'){
